@@ -10,6 +10,8 @@
 #include "version.h"
 #include "jive.h"
 
+#include "visualizer/visualizer.h"
+
 #include <errno.h>
 #include <signal.h>
 #include <syslog.h>
@@ -23,7 +25,6 @@
 #include <netinet/in.h>
 #include <linux/if.h>
 #include <execinfo.h>
-
 
 char *platform_get_home_dir() {
     char *dir;
@@ -236,6 +237,8 @@ void platform_init(lua_State *L) {
 	Lsig = L;
 	log_sp = LOG_CATEGORY_GET("jivelite");
 
+	/* init visualizer */
+	vis_init();
 
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = SA_RESTART;
