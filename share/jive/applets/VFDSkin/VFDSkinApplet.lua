@@ -92,13 +92,13 @@ function param(self)
 			{
 				style = 'nowplaying_spectrum_text',
 				artworkSize = '64x64',
---				localPlayerOnly = 1,
+				localPlayerOnly = 1,
 				text = self:string("SPECTRUM_ANALYZER"),
 			},
 			{
 				style = 'nowplaying_vuanalog_text',
 				artworkSize = '64x64',
---				localPlayerOnly = 1,
+				localPlayerOnly = 1,
 				text = self:string("ANALOG_VU_METER"),
 			},
 		},
@@ -2602,7 +2602,6 @@ function skin(self, s, reload, useDefaultSize)
 				capColor = { 0xd0, 0xd0, 0xd0, 0xff },
 
 				isMono = 0,				-- 0 / 1
-				minBands = 48,
 
 				capHeight = { 2, 2 },			-- >= 0
 				capSpace = { 2, 2 },			-- >= 0

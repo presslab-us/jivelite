@@ -51,6 +51,7 @@ local WakeOnLan   = require("jive.net.WakeOnLan")
 
 local Task        = require("jive.ui.Task")
 local Framework   = require("jive.ui.Framework")
+local jive        = require("jive")
 
 local ArtworkCache = require("jive.slim.ArtworkCache")
 
@@ -69,6 +70,7 @@ module(..., oo.class)
 
 -- we must load this after the module declartion to dependancy loops
 local Player      = require("jive.slim.Player")
+local LocalPlayer      = require("jive.slim.LocalPlayer")
 
 
 -- minimum support server version, can be set per device
@@ -257,7 +259,11 @@ function _serverstatusSink(self, event, err)
 	
 			-- create new players
 			if not self.players[playerId] then
-				self.players[playerId] = Player(self.jnt, playerId)
+				if playerId == jive.vis:get_mac() then
+					self.players[playerId] = LocalPlayer(self.jnt, playerId)
+				else
+					self.players[playerId] = Player(self.jnt, playerId)
+				end
 			end
 			
 			local player = self.players[playerId]
