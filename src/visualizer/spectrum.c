@@ -28,24 +28,24 @@ static int power_map[32] = {
   1371400, 1501931, 1639645, 1784670, 1937131
 }; 
 
+#define X_SCALE_LOG 20
+
 // The maximum number of input samples sent to the FFT.
 // This is the actual number of input points for a combined
 // stereo signal.
 // For separate stereo signals, the number of input points for
 // each signal is half of the value.
-#define MAX_SAMPLE_WINDOW 1024
+#define MAX_SAMPLE_WINDOW 1024 * X_SCALE_LOG
 
 // The maximum number of subbands forming the output of the FFT.
 // The is the actual number of output points for a combined
 // stereo signal.
 // For separate stereo signals, the number of output points for
 // each signal is half of the value.
-#define MAX_SUBBANDS MAX_SAMPLE_WINDOW / 2
+#define MAX_SUBBANDS MAX_SAMPLE_WINDOW / 2 / X_SCALE_LOG
 
 // The minimum size of the FFT that we'll do.
-//#define MIN_SUBBANDS 48
-
-static int min_subbands;
+#define MIN_SUBBANDS 16
 
 // The minimum total number of input samples to consider for the FFT.
 // If the sample window used is smaller, then we will use multiple
@@ -114,6 +114,11 @@ double filter_window[MAX_SAMPLE_WINDOW];
 // based on a db/KHz value.
 double preemphasis[MAX_SUBBANDS];
 
+// Lookup table to index the FFT result into the subband to
+// produce a log scale on the x axis
+int decade_idx[MAX_SUBBANDS];
+int decade_len[MAX_SUBBANDS];
+
 // Used in power computation across multiple sample windows.
 // For a small window size, this could be stack based.
 float avg_power[2 * MAX_SUBBANDS];
@@ -135,14 +140,13 @@ int visualizer_spectrum_init( lua_State *L) {
 	int shiftsubbands;
 
 	is_mono = luaL_optinteger(L, 2, 0);
-	min_subbands = luaL_optinteger(L, 3, 32);
 
 //	printf( "* is_mono: %d\n", is_mono);
 
-	channel_width[0] = luaL_optinteger(L, 4, 192);	// Default: 192
-	channel_flipped[0] = luaL_optinteger(L, 5, 0);	// Default: false
-	bar_size[0] = luaL_optinteger(L, 6, 6);		// Default: 6
-	clip_subbands[0] = luaL_optinteger(L, 7, 0);	// Default: false
+	channel_width[0] = luaL_optinteger(L, 3, 192);	// Default: 192
+	channel_flipped[0] = luaL_optinteger(L, 4, 0);	// Default: false
+	bar_size[0] = luaL_optinteger(L, 5, 6);		// Default: 6
+	clip_subbands[0] = luaL_optinteger(L, 6, 0);	// Default: false
 
 //	printf( "* channel_width[0]: %d\n", channel_width[0]);
 //	printf( "* channel_flipped[0]: %d\n", channel_flipped[0]);
@@ -150,10 +154,10 @@ int visualizer_spectrum_init( lua_State *L) {
 //	printf( "* clip_subbands[0]: %d\n", clip_subbands[0]);
 
 	if( !is_mono) {
-		channel_width[1] = luaL_optinteger(L, 8, 192);
-		channel_flipped[1] = luaL_optinteger(L, 9, 0);
-		bar_size[1] = luaL_optinteger(L, 10, 2);
-		clip_subbands[1] = luaL_optinteger(L, 11, 0);
+		channel_width[1] = luaL_optinteger(L, 7, 192);
+		channel_flipped[1] = luaL_optinteger(L, 8, 0);
+		bar_size[1] = luaL_optinteger(L, 9, 2);
+		clip_subbands[1] = luaL_optinteger(L, 10, 0);
 
 //		printf( "* channel_width[1]: %d\n", channel_width[1]);
 //		printf( "* channel_flipped[1]: %d\n", channel_flipped[1]);
@@ -197,9 +201,9 @@ int visualizer_spectrum_init( lua_State *L) {
 
 	// Though we may have to compute more subbands to meet
 	// a minimum and average them into the histogram bars.
-	if( num_subbands < min_subbands/*MIN_SUBBANDS*/) {
-		subbands_in_bar[0] = min_subbands/*MIN_SUBBANDS*/ / num_subbands;
-		num_subbands = min_subbands/*MIN_SUBBANDS*/;
+	if( num_subbands < MIN_SUBBANDS) {
+		subbands_in_bar[0] = MIN_SUBBANDS / num_subbands;
+		num_subbands = MIN_SUBBANDS;
 	} else {
 		subbands_in_bar[0] = 1;
 	}
@@ -241,7 +245,7 @@ int visualizer_spectrum_init( lua_State *L) {
 	// input to the FFT. If we're halving the bandwidth (by
 	// averaging adjacent samples), we're going to need twice
 	// as many.
-	sample_window = num_subbands * 2;
+	sample_window = num_subbands * 2 * X_SCALE_LOG;
 
 	if( sample_window < MIN_FFT_INPUT_SAMPLES) {
 		num_windows = MIN_FFT_INPUT_SAMPLES / sample_window;
@@ -259,9 +263,10 @@ int visualizer_spectrum_init( lua_State *L) {
 		double const2;
 		int w;
 
-		double subband_width;
 		double freq_sum;
 		double scale_db;
+		double e;
+
 		int s;
 
 		cfg = kiss_fft_alloc( sample_window, 0, NULL, NULL);
@@ -283,16 +288,23 @@ int visualizer_spectrum_init( lua_State *L) {
 		}
 
 		// Compute the preemphasis
-		subband_width = 22.05 / num_subbands;
 		freq_sum = 0;
 		scale_db = 0;
 
-		for( s = 0; s < num_subbands; s++) {
+		// compute the decade scale
+		e = log(num_subbands * X_SCALE_LOG) / log(num_subbands);
+
+		decade_idx[0] = 1;
+		for( s = 0; s < num_subbands - 1; s++) {
+			decade_idx[s+1] = pow( s+1, e) + 1;
+			decade_len[s] = decade_idx[s+1] - decade_idx[s];
+
 			while( freq_sum > 1) {
 				freq_sum -= 1;
 // TODO: needed as parameter?
 //				scale_db += preemphasis_db_per_khz;
-				scale_db += ( 0x10000 >> 16);
+//				scale_db += ( 0x10000 >> 16);
+				scale_db += 1.5; // 1 dB per kHz
 
 			}
 			if( scale_db != 0) {
@@ -300,8 +312,15 @@ int visualizer_spectrum_init( lua_State *L) {
 			} else {
 				preemphasis[s] = 1;
 			}
-			freq_sum += subband_width;
+			freq_sum += (vis_get_rate() / 1000) / ((float)(num_subbands * X_SCALE_LOG) / decade_len[s]);
 		}
+		decade_len[s] = (num_subbands * X_SCALE_LOG) - decade_idx[s] + 1;
+		preemphasis[s] = pow( 10, ( scale_db / 10.0));
+
+		for( s = 0; s < num_subbands; s++) {
+			printf("subband: %d, decade_idx: %d, decade_len: %d, preemphasis: %f\n", s, decade_idx[s], decade_len[s], preemphasis[s]);
+		}
+
 	}
 
 	// Return calculated number of bars for each channel
@@ -340,7 +359,7 @@ int visualizer_spectrum( lua_State *L) {
 	}
 
 	// Init avg_power
-	for( i = 0; i < (2 * MAX_SUBBANDS); i++) {
+	for( i = 0; i < (2 * num_subbands); i++) {
 		avg_power[i] = 0;
 	}
 
@@ -379,10 +398,10 @@ int visualizer_spectrum( lua_State *L) {
 		samples_until_wrap = vis_get_buffer_len() - offs;
 
 		for( i = 0; i < sample_window; i++) {
-			sample = (*ptr++) >> 3;
+			sample = (*ptr++) >> 5;
 			fin_buf[i].r = (float) (filter_window[i] * sample);
 
-			sample = (*ptr++) >> 3;
+			sample = (*ptr++) >> 5;
 			fin_buf[i].i = (float) (filter_window[i] * sample);
 
 			samples_until_wrap -=2;
@@ -400,23 +419,30 @@ int visualizer_spectrum( lua_State *L) {
 		// Extract the two separate frequency domain signals
 		// and keep track of the power per bin.
 		avg_ptr = 0;
-		for( s = 1; s <= num_subbands; s++) {
+		for( s = 0; s < num_subbands; s++) {
 			kiss_fft_cpx ck, cnk;
 
-			float r, i;
+			float r = 0, i = 0;
+			int x;
 
-			ck = fout_buf[s];
-			cnk = fout_buf[sample_window - s];
+			for( x = decade_idx[s]; x < decade_idx[s] + decade_len[s]; x ++) {
+				ck = fout_buf[x];
+				cnk = fout_buf[sample_window - x];
 
-			r = ( ck.r + cnk.r) / 2;
-			i = ( ck.i - cnk.i) / 2;
+				r = ( ck.r + cnk.r) / 2;
+				i = ( ck.i - cnk.i) / 2;
 
-			avg_power[avg_ptr++] += ( r * r + i * i) / num_windows;
+				avg_power[avg_ptr] += ( r * r + i * i) / num_windows;
 
-			r = ( cnk.i + ck.i) / 2;
-			i = ( cnk.r - ck.r) / 2;
+				r = ( cnk.i + ck.i) / 2;
+				i = ( cnk.r - ck.r) / 2;
 
-			avg_power[avg_ptr++] += ( r * r + i * i) / num_windows;
+				avg_power[avg_ptr+1] += ( r * r + i * i) / num_windows;
+			}
+			avg_power[avg_ptr] /= decade_len[s];
+			avg_power[avg_ptr+1] /= decade_len[s];
+
+			avg_ptr += 2;
 		}
 	}
 

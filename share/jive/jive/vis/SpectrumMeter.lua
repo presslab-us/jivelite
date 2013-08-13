@@ -52,7 +52,6 @@ function _layout(self)
 		return
 	end
 
-	self.minBands = 48
 	self.capHeight = {}
 	self.capSpace = {}
 
@@ -65,7 +64,6 @@ function _layout(self)
 	self.clipSubbands = {}
 
 	self.isMono =  self:styleValue("isMono")
-	self.minBands =  self:styleValue("minBands")
 
 	self.capHeight = self:styleValue("capHeight")
 	self.capSpace = self:styleValue("capSpace")
@@ -103,7 +101,6 @@ function _layout(self)
 
 	numBars = jive.vis:spectrum_init(
 		self.isMono,
-		self.minBands,
 
 		self.channelWidth[1],
 		self.channelFlipped[1],

@@ -35,11 +35,11 @@ int visualizer_vumeter(lua_State *L) {
 		samples_until_wrap = vis_get_buffer_len() - offs;
 
 		for (i=0; i<num_samples; i++) {
-			sample = (*ptr++) >> 9;
+			sample = (*ptr++) >> 7;
 			sample_sq = sample * sample;
 			sample_accumulator[0] += sample_sq;
 
-			sample = (*ptr++) >> 9;
+			sample = (*ptr++) >> 7;
 			sample_sq = sample * sample;
 			sample_accumulator[1] += sample_sq;
 
