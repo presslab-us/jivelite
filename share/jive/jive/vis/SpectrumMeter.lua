@@ -7,7 +7,7 @@ local Surface       = require("jive.ui.Surface")
 local Timer         = require("jive.ui.Timer")
 local Widget        = require("jive.ui.Widget")
 
-local jive          = require("jive")
+local vis           = require("jive.vis")
 
 local debug         = require("jive.utils.debug")
 local log           = require("jive.utils.log").logger("jivelite.vis")
@@ -99,7 +99,7 @@ function _layout(self)
 
 	local numBars = {}
 
-	numBars = jive.vis:spectrum_init(
+	numBars = vis:spectrum_init(
 		self.isMono,
 
 		self.channelWidth[1],
@@ -155,7 +155,7 @@ function draw(self, surface)
 
 	local bins = { {}, {} }
 
-	bins[1], bins[2] = jive.vis:spectrum()
+	bins[1], bins[2] = vis:spectrum()
 
 	_drawBins(
 		self, surface, bins, 1, self.x1, self.y, self.barsInBin[1],

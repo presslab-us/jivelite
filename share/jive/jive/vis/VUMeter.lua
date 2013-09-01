@@ -7,7 +7,7 @@ local Surface       = require("jive.ui.Surface")
 local Timer         = require("jive.ui.Timer")
 local Widget        = require("jive.ui.Widget")
 
-local jive          = require("jive")
+local vis           = require("jive.vis")
 
 local debug         = require("jive.utils.debug")
 local log           = require("jive.utils.log").logger("jivelite.vis")
@@ -86,7 +86,7 @@ function draw(self, surface)
 		self.bgImg:blit(surface, self:getBounds())
 	end
 
-	local sampleAcc = jive.vis:vumeter()
+	local sampleAcc = vis:vumeter()
 
 	local volume = self.player:getVolume()
 
