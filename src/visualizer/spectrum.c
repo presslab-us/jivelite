@@ -304,7 +304,7 @@ int visualizer_spectrum_init( lua_State *L) {
 // TODO: needed as parameter?
 //				scale_db += preemphasis_db_per_khz;
 //				scale_db += ( 0x10000 >> 16);
-				scale_db += 1.5; // 1 dB per kHz
+				scale_db += 1.2; // 1.2 dB per kHz
 
 			}
 			if( scale_db != 0) {
@@ -317,9 +317,9 @@ int visualizer_spectrum_init( lua_State *L) {
 		decade_len[s] = (num_subbands * X_SCALE_LOG) - decade_idx[s] + 1;
 		preemphasis[s] = pow( 10, ( scale_db / 10.0));
 
-		for( s = 0; s < num_subbands; s++) {
-			printf("subband: %d, decade_idx: %d, decade_len: %d, preemphasis: %f\n", s, decade_idx[s], decade_len[s], preemphasis[s]);
-		}
+//		for( s = 0; s < num_subbands; s++) {
+//			printf("subband: %d, decade_idx: %d, decade_len: %d, preemphasis: %f\n", s, decade_idx[s], decade_len[s], preemphasis[s]);
+//		}
 
 	}
 
