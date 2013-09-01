@@ -167,6 +167,9 @@ static int jiveL_initSDL(lua_State *L) {
 	/* linux fbcon does not need a mouse */
 	SDL_putenv("SDL_NOMOUSE=1");
 
+	/* allow the screensaver */
+	SDL_putenv("SDL_VIDEO_ALLOW_SCREENSAVER=1");
+
 	/* initialise SDL */
 	if (SDL_Init(SDL_INIT_VIDEO) < 0) {
 		LOG_ERROR(log_ui_draw, "SDL_Init(V|T|A): %s\n", SDL_GetError());
